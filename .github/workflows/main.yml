@@ -22,8 +22,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup databricks CLI
-        uses: databricks/setup-cli@main
+      - name: Install Databricks CLI
+        run: pip install databricks-cli  # Manual CLI installation
 
       - name: Deploy bundle
         run: databricks bundle deploy --target prod
