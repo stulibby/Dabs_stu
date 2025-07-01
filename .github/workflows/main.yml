@@ -1,0 +1,33 @@
+name: Databricks pipeline
+
+on:
+  push:
+    branches: ["main"]
+
+env:
+  DATABRICKS_CLIENT_ID: ${{secrets.DATABRICKS_CLIENT_ID}}
+  DATABRICKS_CLIENT_SECRET: ${{secrets.DATABRICKS_CLIENT_SECRET}}
+  PROD_DIRECTORY: "/Repos/GA/cicd_w_dabs_ga_demo"
+
+jobs: 
+
+  deploy:
+    name: Deploy bundle
+    runs-on: windows-latest
+
+
+    environment: stu_prod
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup databricks CLI
+        uses: databricks/setup-cli@main
+
+      - name: Deploy bundle
+        run: databricks bundle deploy --target prod
+        env:
+          DATABRICKS_BUNDLE_ENV: prod
+
+  
