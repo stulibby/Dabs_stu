@@ -23,7 +23,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install Databricks CLI
-        run: pip install databricks-cli  # Manual CLI installation
+        run: pip install --upgrade "databricks-cli>=0.205"
 
       - name: Deploy bundle
         run: databricks bundle deploy --target prod
