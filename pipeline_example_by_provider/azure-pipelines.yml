@@ -1,0 +1,100 @@
+trigger:
+  branches:
+    include:
+      - main
+
+variables:
+- name: PROD_DIRECTORY
+  value: /Workspace/Repos/CICDProject1/ado_cicd_dabs
+- group: env-var-group
+
+jobs:
+- job: unit_testing
+  displayName: 'Databricks Unit testing'
+  pool:
+    vmImage: 'ubuntu-latest'
+  steps:
+    - checkout: self
+
+    - task: UsePythonVersion@0
+      inputs:
+        versionSpec: '3.10'
+      displayName: "Install Python"
+
+    - script: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-azurepipelines
+      displayName: 'Install python dependencies'
+
+    - script: |
+        curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sudo sh
+      displayName: 'Install Databricks CLI'
+
+    - script: |
+       python -m pytest tests
+      displayName: 'Run unit test'
+      env:
+        DATABRICKS_BUNDLE_ENV: prod
+        DATABRICKS_CLIENT_ID: $(DATABRICKS_CLIENT_ID)
+        DATABRICKS_CLIENT_SECRET: $(DATABRICKS_CLIENT_SECRET)
+        DATABRICKS_HOST: $(DATABRICKS_HOST)
+
+    - task: PublishTestResults@2
+      condition: succeededOrFailed()
+      inputs:
+        testResultsFormat: 'JUnit'
+        testResultsFiles: '**/test-*.xml' 
+        failTaskOnFailedTests: true
+
+- job: deploy
+  displayName: 'Deploy bundle'
+  pool:
+    vmImage: 'ubuntu-latest'
+  dependsOn: unit_testing
+  steps:
+    - checkout: self
+
+    - script: |
+        curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sudo sh
+      displayName: 'Install Databricks CLI'
+
+    - script: |
+        databricks bundle deploy --target prod
+      displayName: 'Deploy bundle'
+      env:
+        DATABRICKS_BUNDLE_ENV: prod
+        DATABRICKS_CLIENT_ID: $(DATABRICKS_CLIENT_ID)
+        DATABRICKS_CLIENT_SECRET: $(DATABRICKS_CLIENT_SECRET)
+        BUNDLE_VAR_data_path: $(BUNDLE_VAR_DATA_PATH)
+        BUNDLE_VAR_catalog: $(BUNDLE_VAR_CATALOG)
+        BUNDLE_VAR_schema: $(BUNDLE_VAR_SCHEMA)
+        BUNDLE_VAR_table: $(BUNDLE_VAR_TABLE)
+        BUNDLE_VAR_num_workers: $(BUNDLE_VAR_NUM_WORKERS)
+        BUNDLE_VAR_spark_version: $(BUNDLE_VAR_SPARK_VERSION)
+
+- job: run_pipeline
+  displayName: 'Run pipeline update'
+  pool:
+    vmImage: 'ubuntu-latest'
+  dependsOn: deploy
+  steps:
+    - checkout: self
+
+    - script: |
+        curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sudo sh
+      displayName: 'Install Databricks CLI'
+
+    - script: |
+        databricks bundle run awesome_job --target prod
+      displayName: 'Run pipeline update'
+      env:
+        DATABRICKS_BUNDLE_ENV: prod
+        DATABRICKS_CLIENT_ID: $(DATABRICKS_CLIENT_ID)
+        DATABRICKS_CLIENT_SECRET: $(DATABRICKS_CLIENT_SECRET)
+        BUNDLE_VAR_data_path: $(BUNDLE_VAR_DATA_PATH)
+        BUNDLE_VAR_catalog: $(BUNDLE_VAR_CATALOG)
+        BUNDLE_VAR_schema: $(BUNDLE_VAR_SCHEMA)
+        BUNDLE_VAR_table: $(BUNDLE_VAR_TABLE)
+        BUNDLE_VAR_num_workers: $(BUNDLE_VAR_NUM_WORKERS)
+        BUNDLE_VAR_spark_version: $(BUNDLE_VAR_SPARK_VERSION)
